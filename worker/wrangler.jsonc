@@ -1,0 +1,21 @@
+{
+  "name": "empire-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-05-01",
+  "compatibility_flags": [
+    "global_fetch_strictly_public"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "empire-db",
+      "database_id": "empire-db"
+    }
+  ],
+  "vars": {
+    "JWT_SECRET": "empire-secret-key-change-in-production"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

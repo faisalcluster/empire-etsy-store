@@ -1,0 +1,23 @@
+{
+	"name": "worker",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"test": "vitest",
+		"cf-typegen": "wrangler types"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.12.4",
+		"@types/bcryptjs": "^2.4.6",
+		"typescript": "^5.5.2",
+		"vitest": "~3.2.0",
+		"wrangler": "^3.101.0"
+	},
+	"dependencies": {
+		"bcryptjs": "^3.0.3",
+		"itty-router": "^5.0.23"
+	}
+}
