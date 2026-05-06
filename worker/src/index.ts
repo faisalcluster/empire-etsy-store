@@ -127,6 +127,20 @@ router.onerror = (error: Error) => {
 // ============================================
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return router.handle(request, env)
+    const response = await router.handle(request, env)
+
+    // Add CORS headers to all responses
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    }
+
+    const newResponse = new Response(response.body, response)
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      newResponse.headers.set(key, value)
+    })
+
+    return newResponse
   },
 } satisfies ExportedHandler<Env>

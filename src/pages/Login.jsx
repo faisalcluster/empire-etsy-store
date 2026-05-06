@@ -9,7 +9,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     setError('')
 
@@ -17,11 +17,11 @@ export default function Login() {
       if (!name.trim()) { setError('Name is required'); return }
       if (!email.trim()) { setError('Email is required'); return }
       if (password.length < 4) { setError('Password must be at least 4 characters'); return }
-      const ok = register(name.trim(), email.trim().toLowerCase(), password)
-      if (!ok) setError('Email already exists')
+      const ok = await register(name.trim(), email.trim().toLowerCase(), password)
+      if (!ok) setError('Email already exists or registration failed')
     } else {
       if (!email.trim() || !password) { setError('Please fill in all fields'); return }
-      const ok = login(email.trim().toLowerCase(), password)
+      const ok = await login(email.trim().toLowerCase(), password)
       if (!ok) setError('Invalid email or password')
     }
   }

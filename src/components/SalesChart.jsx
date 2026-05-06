@@ -13,8 +13,13 @@ export default function SalesChart({ data, label, color }) {
 
     const ctx = canvasRef.current.getContext('2d')
     const gradient = ctx.createLinearGradient(0, 0, 0, 200)
-    gradient.addColorStop(0, (color || 'rgba(102,126,234,') + '0.4)')
-    gradient.addColorStop(1, (color || 'rgba(102,126,234,') + '0.0)')
+    const baseColor = color || '#667eea'
+    // Convert hex to rgba with alpha if it's a hex color
+    const rgba04 = baseColor.startsWith('#') ? `${baseColor}66` : baseColor.replace('rgb', 'rgba').replace(')', ', 0.4)')
+    const rgba00 = baseColor.startsWith('#') ? `${baseColor}00` : baseColor.replace('rgb', 'rgba').replace(')', ', 0.0)')
+
+    gradient.addColorStop(0, rgba04)
+    gradient.addColorStop(1, rgba00)
 
     chartRef.current = new Chart(ctx, {
       type: 'line',

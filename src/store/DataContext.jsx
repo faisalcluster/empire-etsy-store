@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 const DataContext = createContext(null)
 
 const STORAGE_KEY = 'empire_data'
+const API_BASE = 'https://empire-api.faisal-cluster.workers.dev'
 
 const DEFAULT_STORES = [
   { id: 's1', name: 'Bengal Crafts', emoji: '🏺', etsyUrl: '' },
@@ -22,21 +23,14 @@ function todayStr() {
 }
 
 function getInitialData() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) return JSON.parse(saved)
-  } catch (e) { /* ignore */ }
-
-  // Seed demo data
+  // 1. Define complete default structure
   const today = todayStr()
-  const metrics = {}
-  const history = []
+  const demoMetrics = {}
   DEFAULT_STORES.forEach(s => {
-    const salesAmt = Math.floor(Math.random() * 500) + 100
     const listingsTotal = Math.floor(Math.random() * 100) + 50
-    metrics[s.id] = {
+    demoMetrics[s.id] = {
       [today]: {
-        sales_amount: salesAmt,
+        sales_amount: Math.floor(Math.random() * 500) + 100,
         sales_count: Math.floor(Math.random() * 15) + 3,
         listings_added: Math.floor(Math.random() * 10) + 1,
         listings_total: listingsTotal,
@@ -44,31 +38,17 @@ function getInitialData() {
         seo_visits: Math.floor(Math.random() * 500) + 100,
       }
     }
-    // Add some past days
-    for (let i = 1; i <= 13; i++) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      const dateKey = d.toISOString().split('T')[0]
-      metrics[s.id][dateKey] = {
-        sales_amount: Math.floor(Math.random() * 400) + 50,
-        sales_count: Math.floor(Math.random() * 12) + 1,
-        listings_added: Math.floor(Math.random() * 8),
-        listings_total: listingsTotal - Math.floor(Math.random() * 10),
-        add_to_cart: Math.floor(Math.random() * 35) + 5,
-        seo_visits: Math.floor(Math.random() * 400) + 50,
-      }
-    }
   })
 
-  return {
+  const defaults = {
     user: null,
     users: [
       { id: 'u1', email: 'admin@empire.com', name: 'Admin', password: 'admin123', role: 'admin' },
     ],
     stores: DEFAULT_STORES,
     selectedStoreId: DEFAULT_STORES[0].id,
-    metrics,
-    metricHistory: history,
+    metrics: demoMetrics,
+    metricHistory: [],
     teamMembers: [
       { id: 'u1', email: 'admin@empire.com', name: 'Admin', role: 'admin' },
     ],
@@ -76,6 +56,27 @@ function getInitialData() {
       { id: 'a1', user: 'Admin', action: 'Created the workspace', time: new Date().toISOString(), color: '#667eea' },
     ],
   }
+
+  // 2. Load from localStorage and merge
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      return {
+        ...defaults,
+        ...parsed,
+        // Ensure arrays are at least initialized if they were null/missing in parsed
+        users: parsed.users || defaults.users,
+        stores: parsed.stores || defaults.stores,
+        metrics: parsed.metrics || defaults.metrics,
+        metricHistory: parsed.metricHistory || defaults.metricHistory,
+        teamMembers: parsed.teamMembers || defaults.teamMembers,
+        activity: parsed.activity || defaults.activity,
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  return defaults
 }
 
 export function DataProvider({ children }) {
@@ -91,32 +92,87 @@ export function DataProvider({ children }) {
     setTimeout(() => setToast(null), 2500)
   }, [])
 
-  const login = useCallback((email, password) => {
-    const user = data.users.find(u => u.email === email && u.password === password)
-    if (user) {
-      setData(d => ({ ...d, user: { id: user.id, email: user.email, name: user.name, role: user.role } }))
+  const login = useCallback(async (email, password) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        console.error('Login error:', error)
+        return false
+      }
+
+      const result = await response.json()
+      const { user, tokens } = result
+
+      // Store tokens in localStorage
+      localStorage.setItem('empire_access_token', tokens.accessToken)
+      localStorage.setItem('empire_refresh_token', tokens.refreshToken)
+
+      setData(d => ({ ...d, user }))
       return true
+    } catch (error) {
+      console.error('Login error:', error)
+      return false
     }
-    return false
-  }, [data.users])
+  }, [])
 
-  const register = useCallback((name, email, password) => {
-    if (data.users.find(u => u.email === email)) return false
-    const id = generateId()
-    const role = data.users.length === 0 ? 'admin' : 'viewer'
-    const newUser = { id, email, name, password, role }
-    setData(d => ({
-      ...d,
-      users: [...d.users, newUser],
-      user: { id, email, name, role },
-      teamMembers: [...d.teamMembers, { id, email, name, role }],
-      activity: [{ id: generateId(), user: name, action: 'joined the team', time: new Date().toISOString(), color: '#43e97b' }, ...d.activity],
-    }))
-    return true
-  }, [data.users])
+  const register = useCallback(async (name, email, password) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      })
 
-  const logout = useCallback(() => {
-    setData(d => ({ ...d, user: null }))
+      if (!response.ok) {
+        const error = await response.json()
+        console.error('Register error:', error)
+        return false
+      }
+
+      const result = await response.json()
+      const { user, tokens } = result
+
+      // Store tokens in localStorage
+      localStorage.setItem('empire_access_token', tokens.accessToken)
+      localStorage.setItem('empire_refresh_token', tokens.refreshToken)
+
+      setData(d => ({
+        ...d,
+        user,
+        teamMembers: [...d.teamMembers, { id: user.id, email: user.email, name: user.name, role: user.role }],
+        activity: [{ id: generateId(), user: name, action: 'joined the team', time: new Date().toISOString(), color: '#43e97b' }, ...d.activity],
+      }))
+      return true
+    } catch (error) {
+      console.error('Register error:', error)
+      return false
+    }
+  }, [])
+
+  const logout = useCallback(async () => {
+    try {
+      const refreshToken = localStorage.getItem('empire_refresh_token')
+      if (refreshToken) {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken })
+        })
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      // Clear tokens
+      localStorage.removeItem('empire_access_token')
+      localStorage.removeItem('empire_refresh_token')
+      setData(d => ({ ...d, user: null }))
+    }
   }, [])
 
   const selectStore = useCallback((storeId) => {
